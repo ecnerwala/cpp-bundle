@@ -8,28 +8,28 @@ formatting), system headers stay as `#include` lines. It is a small
 decides which file's text to copy.
 
 ```sh
-cpp-bundle [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]
+cpp-bundle [CLANG_ARGS...] FILE...
 ```
 
-- Files under `--root` (default: the current directory) are user headers and get inlined
-  where they are included; an include that clang skips (guard, `#pragma once`) produces
-  nothing. `#pragma once` lines are dropped; include guards are kept as text.
-- Nothing else is ever opened — the tool runs with `-nostdinc -nostdinc++`, so the output
-  does not depend on the machine's standard library. Any other `#include` is kept as a
-  line, once per header name, at the position of its first inclusion.
-- `--prelude HDR` emits `#include <HDR>` before everything else. Once `<bits/stdc++.h>`
-  has been emitted (prelude or seen in the source), later includes of standard headers
+- `#include "..."` is a user header and gets inlined where it is included (an error if the
+  file does not exist); an include that clang skips (guard, `#pragma once`) produces nothing.
+  `#pragma once` lines are dropped; include guards are kept as text.
+- `#include <...>` is kept as a line, once per header name, at the position of its first
+  inclusion. The standard include directories are never searched (the tool runs with
+  `-nostdinc -nostdinc++`), so the output does not depend on the machine's standard library.
+- `CLANG_ARGS` are clang's own (`-std=c++23 -I src -DLOCAL ...`); conditional includes are
+  evaluated with clang's predefined macros plus these. `-include HDR` puts `HDR` first:
+  inlined if it is a file, emitted as `#include <HDR>` otherwise. Once `<bits/stdc++.h>` has
+  been emitted (`-include` or seen in the source), later includes of standard headers
   (`<vector>`, `<cstdio>`, ...) are dropped.
-- `COMPILER_ARGS` go to clang unchanged (`-std=c++23 -I src -DLOCAL ...`); conditional
-  includes are evaluated with clang's predefined macros plus these.
 - Several `FILE`s are bundled into one output, in order, with shared includes deduplicated.
 
 Example:
 
 ```sh
 cd my-library
-cpp-bundle --prelude bits/stdc++.h --prelude cassert \
-  verify/some_problem.test.cpp -- -std=c++23 -I src | cpp-minify --check > submission.cpp
+cpp-bundle -include bits/stdc++.h -include cassert -std=c++23 -I src \
+  verify/some_problem.test.cpp | cpp-minify --check > submission.cpp
 ```
 
 ## Minifying

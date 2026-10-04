@@ -1,11 +1,14 @@
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
+#include <clang/Driver/Options.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Lex/PPCallbacks.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
+#include <llvm/Option/ArgList.h>
+#include <llvm/Option/OptTable.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -41,28 +44,25 @@ struct Frame {
 	FileID fid;
 	llvm::StringRef buf;
 	unsigned cursor;
-	bool system;
+	bool copy;
+	bool opaque;
 };
 
-// Copies the text of every file under root as the preprocessor enters it, replacing user
-// #include lines by the included file and dropping #pragma once. Nothing outside root is
-// opened (the tool runs with -nostdinc -nostdinc++): a system #include is kept as a line,
-// once per header name, unless a prelude header covers it.
+// Copies the text of every file reached through #include "..." as the preprocessor enters
+// it, replacing the directive by the file and dropping #pragma once. #include <...> is kept
+// as a line, once per header name, unless a prelude header covers it; the standard include
+// directories are never searched (-nostdinc -nostdinc++). -include files come first: inlined
+// if they exist, emitted as #include <...> otherwise.
 class Bundler : public PPCallbacks {
+	Preprocessor& pp;
 	SourceManager& sm;
-	std::string root;
 	std::vector<Frame> stack;
 	std::string& out;
 	std::set<std::string> seen;
+	bool nextOpaque = false;
 
-	bool isUserFile(OptionalFileEntryRef fe) const {
-		if (!fe) return false;
-		llvm::StringRef name = fe->getFileEntry().tryGetRealPathName();
-		std::string rp = realPath(name.empty() ? fe->getName() : name);
-		return llvm::StringRef(rp).starts_with(root + "/");
-	}
 	void flush(Frame& f, unsigned to) {
-		if (!f.system && to > f.cursor) out.append(f.buf.data() + f.cursor, to - f.cursor);
+		if (f.copy && to > f.cursor) out.append(f.buf.data() + f.cursor, to - f.cursor);
 		if (to > f.cursor) f.cursor = to;
 	}
 	std::pair<unsigned, unsigned> lineRange(SourceLocation loc) {
@@ -75,11 +75,11 @@ class Bundler : public PPCallbacks {
 		return {b, e};
 	}
 	bool onTop(SourceLocation loc) const {
-		return !stack.empty() && sm.getFileID(loc) == stack.back().fid;
+		return !stack.empty() && sm.getFileID(loc) == stack.back().fid && !stack.back().opaque;
 	}
 
 public:
-	Bundler(SourceManager& sm, std::string root, std::string& out) : sm(sm), root(std::move(root)), out(out) {}
+	Bundler(Preprocessor& pp, std::string& out) : pp(pp), sm(pp.getSourceManager()), out(out) {}
 
 	void InclusionDirective(
 		SourceLocation HashLoc, const Token&, llvm::StringRef FileName, bool IsAngled, CharSourceRange,
@@ -91,13 +91,17 @@ public:
 		Frame& f = stack.back();
 		flush(f, b);
 		f.cursor = e;
-		if (File) return;
+		bool prelude = f.fid == pp.getPredefinesFileID();
+		if (!IsAngled && File) return;
+		if (!IsAngled && !prelude) {
+			PresumedLoc loc = sm.getPresumedLoc(HashLoc);
+			llvm::errs() << "cpp-bundle: " << loc.getFilename() << ":" << loc.getLine() << ": file not found: \"" << FileName << "\"\n";
+			std::exit(1);
+		}
+		nextOpaque = File.has_value();
 		std::string name = FileName.str();
-		bool prelude = f.fid == sm.getMainFileID();
 		if (!seen.insert(name).second || (!prelude && covered(name))) return;
-		out += IsAngled ? "#include <" : "#include \"";
-		out += name;
-		out += IsAngled ? ">\n" : "\"\n";
+		out += "#include <" + name + ">\n";
 	}
 
 	bool FileNotFound(llvm::StringRef) override { return true; }
@@ -106,8 +110,10 @@ public:
 		if (Reason == EnterFile) {
 			FileID fid = sm.getFileID(Loc);
 			if (!stack.empty() && stack.back().fid == fid) return;
-			bool system = fid == sm.getMainFileID() || !isUserFile(sm.getFileEntryRefForID(fid));
-			stack.push_back({fid, sm.getBufferData(fid), 0, system});
+			bool special = fid == sm.getMainFileID() || fid == pp.getPredefinesFileID();
+			bool opaque = !special && (nextOpaque || (!stack.empty() && stack.back().opaque));
+			nextOpaque = false;
+			stack.push_back({fid, sm.getBufferData(fid), 0, !special && !opaque, opaque});
 		} else if (Reason == ExitFile) {
 			if (PrevFID.isInvalid()) return;
 			if (stack.empty() || stack.back().fid != PrevFID) {
@@ -170,62 +176,65 @@ public:
 };
 
 class Action : public PreprocessOnlyAction {
-	std::string root;
 	std::string* out;
 
 public:
-	Action(std::string root, std::string* out) : root(std::move(root)), out(out) {}
+	explicit Action(std::string* out) : out(out) {}
 	void ExecuteAction() override {
-		CompilerInstance& ci = getCompilerInstance();
-		ci.getPreprocessor().addPPCallbacks(std::make_unique<Bundler>(ci.getSourceManager(), root, *out));
+		Preprocessor& pp = getCompilerInstance().getPreprocessor();
+		pp.addPPCallbacks(std::make_unique<Bundler>(pp, *out));
 		PreprocessOnlyAction::ExecuteAction();
 	}
 };
 
 struct Factory : tooling::FrontendActionFactory {
-	std::string root;
 	std::string* out;
-	std::unique_ptr<FrontendAction> create() override { return std::make_unique<Action>(root, out); }
+	std::unique_ptr<FrontendAction> create() override { return std::make_unique<Action>(out); }
 };
 
 const char* usage =
-	"usage: cpp-bundle [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]\n"
+	"usage: cpp-bundle [CLANG_ARGS...] FILE...\n"
 	"\n"
-	"Writes FILEs to stdout with every #include of a file under DIR (default: the current\n"
-	"directory) replaced by that file's text. No other file is opened: each other #include\n"
-	"is kept as a line, once per header name. COMPILER_ARGS are passed to clang (-std=, -I,\n"
-	"-D, ...); the standard include directories are not searched.\n"
-	"\n"
-	"  --root DIR     inline files under DIR instead of the current directory\n"
-	"  --prelude HDR  emit #include <HDR> first; after bits/stdc++.h, standard headers are dropped\n";
+	"Writes FILEs to stdout with every #include \"...\" replaced by that file's text, as the\n"
+	"preprocessor sees it. #include <...> is kept as a line, once per header name; the standard\n"
+	"include directories are never searched. CLANG_ARGS are clang's (-std=, -I, -D, ...);\n"
+	"-include HDR puts HDR first: inlined if it is a file, #include <HDR> otherwise, and after\n"
+	"bits/stdc++.h later includes of standard headers are dropped.\n";
 
 } // namespace
 
 int main(int argc, const char** argv) {
-	std::vector<std::string> files, args, prelude;
-	std::string root = ".";
-	bool after = false;
 	for (int i = 1; i < argc; i++) {
 		llvm::StringRef a = argv[i];
-		if (after) args.push_back(argv[i]);
-		else if (a == "--") after = true;
-		else if (a == "--root" && i + 1 < argc) root = argv[++i];
-		else if (a == "--prelude" && i + 1 < argc) prelude.push_back(argv[++i]);
-		else if (a == "-h" || a == "--help") {
+		if (a == "-h" || a == "--help") {
 			llvm::outs() << usage;
 			return 0;
-		} else if (a.starts_with("-")) {
-			llvm::errs() << "cpp-bundle: unknown option " << a << "\n" << usage;
-			return 2;
-		} else files.push_back(argv[i]);
+		}
 	}
+	unsigned missingIndex, missingCount;
+	llvm::opt::InputArgList parsed = driver::getDriverOptTable().ParseArgs(
+		llvm::ArrayRef(argv + 1, argc - 1), missingIndex, missingCount);
+	if (missingCount) {
+		llvm::errs() << "cpp-bundle: missing argument to " << parsed.getArgString(missingIndex) << "\n";
+		return 2;
+	}
+	std::vector<std::string> files, args;
+	std::set<unsigned> inputs;
+	for (const llvm::opt::Arg* a : parsed)
+		if (a->getOption().matches(driver::options::OPT_INPUT)) inputs.insert(a->getIndex());
+	for (int i = 1; i < argc; i++) (inputs.count(i - 1) ? files : args).push_back(argv[i]);
 	if (files.empty()) {
 		llvm::errs() << usage;
 		return 2;
 	}
 	std::string mainSrc;
-	for (const std::string& h : prelude) mainSrc += "#include <" + h + ">\n";
-	for (const std::string& f : files) mainSrc += "#include \"" + realPath(f) + "\"\n";
+	for (const std::string& f : files) {
+		if (!llvm::sys::fs::exists(f)) {
+			llvm::errs() << "cpp-bundle: file not found: " << f << "\n";
+			return 1;
+		}
+		mainSrc += "#include \"" + realPath(f) + "\"\n";
+	}
 	const char* mainName = "/cpp-bundle-main.cpp";
 	args.insert(args.end(), {"-nostdinc", "-nostdinc++", "-x", "c++"});
 	tooling::FixedCompilationDatabase db(".", args);
@@ -233,7 +242,6 @@ int main(int argc, const char** argv) {
 	tool.mapVirtualFile(mainName, mainSrc);
 	std::string out;
 	Factory factory;
-	factory.root = realPath(root);
 	factory.out = &out;
 	int rc = tool.run(&factory);
 	if (rc != 0) return rc;
