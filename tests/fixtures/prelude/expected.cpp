@@ -1,3 +1,5 @@
+#include <bits/stdc++.h>
+#include <cassert>
 
 #pragma GCC optimize("unroll-loops")
 #pragma GCC target("avx2") // Requires AVX2
@@ -16,7 +18,6 @@ inline void disable_denormal_floats() {
 }
 
 } // namespace wala
-#include <bits/stdc++.h>
 #ifndef G_HPP
 #define G_HPP
 // #include "nothing.hpp"

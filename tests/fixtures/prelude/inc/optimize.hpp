@@ -1,3 +1,4 @@
+#pragma once
 
 #pragma GCC optimize("unroll-loops")
 #pragma GCC target("avx2") // Requires AVX2
@@ -16,16 +17,3 @@ inline void disable_denormal_floats() {
 }
 
 } // namespace wala
-#include <bits/stdc++.h>
-#ifndef G_HPP
-#define G_HPP
-// #include "nothing.hpp"
-/* #include <map>
-*/
-struct G { std::vector<int> v; };
-#endif // G_HPP
-#ifdef USE_MAP
-#include <map>
-#endif
-inline int h(G& g) { std::sort(g.v.begin(), g.v.end()); return 0; }
-int main() { G g; return h(g); }

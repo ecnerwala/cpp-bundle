@@ -1,3 +1,5 @@
+#include <bits/stdc++.h>
+#include <cassert>
 #pragma GCC optimize("unroll-loops")
 #pragma GCC target("avx2")
 namespace wala{
@@ -9,7 +11,6 @@ __builtin_ia32_ldmxcsr(csr);
 #undef CSR_FLUSH_TO_ZERO
 }
 }
-#include <bits/stdc++.h>
 #ifndef G_HPP
 #define G_HPP
 struct G{std::vector<int>v;};

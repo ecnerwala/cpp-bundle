@@ -8,26 +8,42 @@ formatting), system headers stay as `#include` lines. It is a small
 decides which file's text to copy.
 
 ```sh
-cpp-bundle [--minify] [--root DIR] FILE [-- COMPILER_ARGS...]
+cpp-bundle [--minify] [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]
 ```
 
 - Files under `--root` (default: the current directory) are user headers and get inlined
   where they are included; an include that clang skips (guard, `#pragma once`) produces
   nothing. `#pragma once` lines are dropped; include guards are kept as text.
-- Any other include is a system header: its body is skipped and the `#include` line is
-  emitted once, at the position of its first inclusion.
+- Nothing else is ever opened — the tool runs with `-nostdinc -nostdinc++`, so the output
+  does not depend on the machine's standard library. Any other `#include` is kept as a
+  line, once per header name, at the position of its first inclusion.
+- `--prelude HDR` emits `#include <HDR>` before everything else. Once `<bits/stdc++.h>`
+  has been emitted (prelude or seen in the source), later includes of standard headers
+  (`<vector>`, `<cstdio>`, ...) are dropped.
 - `COMPILER_ARGS` go to clang unchanged (`-std=c++23 -I src -DLOCAL ...`); conditional
   includes are evaluated with clang's predefined macros plus these.
-- `--minify` strips comments and all whitespace that is not needed to separate tokens,
-  keeping one token line per source line and directives on their own lines. Identifiers
-  are not renamed.
+- `--minify` pipes the result through the minifier below.
+- Several `FILE`s are bundled into one output, in order, with shared includes deduplicated.
 
 Example:
 
 ```sh
 cd my-library
-cpp-bundle --minify verify/some_problem.test.cpp -- -std=c++23 -I src > submission.cpp
+cpp-bundle --minify --prelude bits/stdc++.h --prelude cassert \
+  verify/some_problem.test.cpp -- -std=c++23 -I src > submission.cpp
 ```
+
+## Minifying
+
+```sh
+cpp-minify [--check] [FILE]
+```
+
+Strips comments and all whitespace that is not needed to separate tokens from `FILE`
+(default: stdin), keeping one token line per source line and directives on their own
+lines. Identifiers are not renamed, so the result works for anything clang can lex,
+bundled or not. `--check` re-lexes the output and fails unless it yields exactly the
+input's tokens.
 
 ## Building
 
@@ -42,10 +58,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-The binary links `libclang-cpp` and `libLLVM` dynamically and bakes in that Clang's
-resource directory (its own `stddef.h`, `immintrin.h`, ...); pass `-resource-dir` after
-`--` to override it. C++ standard headers come from the GCC installation clang finds on
-the system, as with `clang++` itself.
+The binary links `libclang-cpp` and `libLLVM` dynamically.
 
 ## License
 
