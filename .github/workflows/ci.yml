@@ -1,0 +1,13 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
+          sudo apt-get install -y libclang-20-dev llvm-20-dev
+      - run: cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
