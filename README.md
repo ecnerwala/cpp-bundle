@@ -46,18 +46,30 @@ input's tokens.
 
 ## Building
 
-Needs CMake and the Clang/LLVM development packages of one Clang major (20 is what CI
-uses; 16+ should work). On Debian/Ubuntu:
+Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (20 is what CI
+uses; 16+ should work); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu:
 
 ```sh
 wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
-sudo apt-get install -y libclang-20-dev llvm-20-dev zlib1g-dev libzstd-dev
+sudo apt-get install -y libclang-20-dev llvm-20-dev
 cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
 cmake --build build
 ctest --test-dir build
 ```
 
 The binaries link clang/LLVM, libstdc++, zlib and zstd statically; the only runtime dependency is glibc.
+
+### Release binaries
+
+`Dockerfile` builds the same thing reproducibly on Ubuntu 22.04 (glibc 2.35), so the result runs
+on any x86_64 Linux with glibc >= 2.35:
+
+```sh
+docker build --output type=local,dest=dist .
+```
+
+The `release` workflow runs this for every `v*` tag and attaches
+`cpp-bundler-<tag>-linux-x86_64.tar.gz` to the GitHub release.
 
 ## License
 

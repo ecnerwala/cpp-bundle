@@ -23,15 +23,23 @@ function(llvm_static_libs out)
 	separate_arguments(files NATIVE_COMMAND ${files})
 	set(${out} ${files} PARENT_SCOPE)
 endfunction()
-set(system_libs rt dl m)
-foreach(lib z zstd)
-	find_library(${lib}_static lib${lib}.a)
-	if(${lib}_static)
-		list(APPEND system_libs ${${lib}_static})
-	else()
-		list(APPEND system_libs ${lib})
-	endif()
-endforeach()
+include(FetchContent)
+set(ZLIB_BUILD_SHARED OFF)
+set(ZLIB_BUILD_TESTING OFF)
+set(ZLIB_INSTALL OFF)
+FetchContent_Declare(zlib
+	URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
+	URL_HASH SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16)
+set(ZSTD_BUILD_SHARED OFF)
+set(ZSTD_BUILD_PROGRAMS OFF)
+set(ZSTD_BUILD_TESTS OFF)
+set(ZSTD_LEGACY_SUPPORT OFF)
+FetchContent_Declare(zstd
+	URL https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+	URL_HASH SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
+	SOURCE_SUBDIR build/cmake)
+FetchContent_MakeAvailable(zlib zstd)
+set(system_libs zlibstatic libzstd_static rt dl m)
 
 add_executable(cpp-bundle src/cpp_bundle.cpp)
 static_libs(bundle_clang_libs

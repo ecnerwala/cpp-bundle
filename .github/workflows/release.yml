@@ -1,0 +1,25 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  linux-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --output type=local,dest=dist .
+      - run: |
+          name=cpp-bundler-${GITHUB_REF_NAME}-linux-x86_64
+          tar -C dist -czf "$name.tar.gz" cpp-bundle cpp-minify
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes cpp-bundler-*.tar.gz*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpp-bundler-linux-x86_64
+          path: cpp-bundler-*.tar.gz*
