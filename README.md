@@ -51,7 +51,7 @@ uses; 16+ should work); zlib and zstd are downloaded and built by CMake. On Debi
 
 ```sh
 wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
-sudo apt-get install -y libclang-20-dev llvm-20-dev
+sudo apt-get install -y clang-20 libclang-20-dev llvm-20-dev
 cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
 cmake --build build
 ctest --test-dir build
