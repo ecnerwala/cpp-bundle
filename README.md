@@ -8,7 +8,7 @@ formatting), system headers stay as `#include` lines. It is a small
 decides which file's text to copy.
 
 ```sh
-cpp-bundle [--minify] [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]
+cpp-bundle [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]
 ```
 
 - Files under `--root` (default: the current directory) are user headers and get inlined
@@ -22,15 +22,14 @@ cpp-bundle [--minify] [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS.
   (`<vector>`, `<cstdio>`, ...) are dropped.
 - `COMPILER_ARGS` go to clang unchanged (`-std=c++23 -I src -DLOCAL ...`); conditional
   includes are evaluated with clang's predefined macros plus these.
-- `--minify` pipes the result through the minifier below.
 - Several `FILE`s are bundled into one output, in order, with shared includes deduplicated.
 
 Example:
 
 ```sh
 cd my-library
-cpp-bundle --minify --prelude bits/stdc++.h --prelude cassert \
-  verify/some_problem.test.cpp -- -std=c++23 -I src > submission.cpp
+cpp-bundle --prelude bits/stdc++.h --prelude cassert \
+  verify/some_problem.test.cpp -- -std=c++23 -I src | cpp-minify --check > submission.cpp
 ```
 
 ## Minifying

@@ -9,8 +9,6 @@
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include "minify.h"
-
 #include <cstdlib>
 #include <set>
 #include <string>
@@ -191,14 +189,13 @@ struct Factory : tooling::FrontendActionFactory {
 };
 
 const char* usage =
-	"usage: cpp-bundle [--minify] [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]\n"
+	"usage: cpp-bundle [--root DIR] [--prelude HDR]... FILE... [-- COMPILER_ARGS...]\n"
 	"\n"
 	"Writes FILEs to stdout with every #include of a file under DIR (default: the current\n"
 	"directory) replaced by that file's text. No other file is opened: each other #include\n"
 	"is kept as a line, once per header name. COMPILER_ARGS are passed to clang (-std=, -I,\n"
 	"-D, ...); the standard include directories are not searched.\n"
 	"\n"
-	"  --minify       strip comments and unneeded whitespace from the result\n"
 	"  --root DIR     inline files under DIR instead of the current directory\n"
 	"  --prelude HDR  emit #include <HDR> first; after bits/stdc++.h, standard headers are dropped\n";
 
@@ -207,12 +204,11 @@ const char* usage =
 int main(int argc, const char** argv) {
 	std::vector<std::string> files, args, prelude;
 	std::string root = ".";
-	bool after = false, doMinify = false;
+	bool after = false;
 	for (int i = 1; i < argc; i++) {
 		llvm::StringRef a = argv[i];
 		if (after) args.push_back(argv[i]);
 		else if (a == "--") after = true;
-		else if (a == "--minify") doMinify = true;
 		else if (a == "--root" && i + 1 < argc) root = argv[++i];
 		else if (a == "--prelude" && i + 1 < argc) prelude.push_back(argv[++i]);
 		else if (a == "-h" || a == "--help") {
@@ -241,6 +237,6 @@ int main(int argc, const char** argv) {
 	factory.out = &out;
 	int rc = tool.run(&factory);
 	if (rc != 0) return rc;
-	llvm::outs() << (doMinify ? minify(out) : out);
+	llvm::outs() << out;
 	return 0;
 }
