@@ -7,7 +7,7 @@ message(STATUS "Using Clang ${LLVM_PACKAGE_VERSION} from ${Clang_DIR}")
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 
 add_executable(cpp-bundle src/cpp_bundle.cpp)
-add_executable(cpp-minify src/cpp_minify.cpp src/minify.cpp)
+add_executable(cpp-minify src/cpp_minify.cpp)
 foreach(t cpp-bundle cpp-minify)
 	target_compile_features(${t} PRIVATE cxx_std_20)
 	target_include_directories(${t} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
