@@ -51,13 +51,13 @@ uses; 16+ should work). On Debian/Ubuntu:
 
 ```sh
 wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
-sudo apt-get install -y libclang-20-dev llvm-20-dev
+sudo apt-get install -y libclang-20-dev llvm-20-dev zlib1g-dev libzstd-dev
 cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
 cmake --build build
 ctest --test-dir build
 ```
 
-The binary links `libclang-cpp` and `libLLVM` dynamically.
+The binaries link clang/LLVM, libstdc++, zlib and zstd statically; the only runtime dependency is glibc.
 
 ## License
 
