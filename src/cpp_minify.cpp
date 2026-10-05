@@ -19,7 +19,7 @@ LangOptions cxxLangOpts() {
 	LangOptions lo;
 	std::vector<std::string> includes;
 	LangOptions::setLangDefaults(
-		lo, Language::CXX, llvm::Triple(llvm::sys::getDefaultTargetTriple()), includes, LangStandard::lang_cxx23);
+		lo, Language::CXX, llvm::Triple(llvm::sys::getDefaultTargetTriple()), includes, LangStandard::lang_gnucxx29);
 	return lo;
 }
 

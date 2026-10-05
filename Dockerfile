@@ -1,6 +1,6 @@
 # Reproducible release build: static clang/LLVM, libstdc++, zlib and zstd; glibc 2.35 (Ubuntu 22.04).
 FROM ubuntu:22.04 AS build
-ARG LLVM_VERSION=20
+ARG LLVM_VERSION=23
 ENV DEBIAN_FRONTEND=noninteractive
 RUN retry() { for _ in 1 2 3 4 5; do "$@" && return 0; sleep 15; done; return 1; }; \
     retry apt-get update && retry apt-get install -y --no-install-recommends ca-certificates wget cmake make g++ \

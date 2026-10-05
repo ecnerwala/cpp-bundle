@@ -1,6 +1,6 @@
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>
-#include <clang/Driver/Options.h>
+#include <clang/Options/Options.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Lex/PPCallbacks.h>
@@ -233,7 +233,7 @@ int main(int argc, const char** argv) {
 		}
 	}
 	unsigned missingIndex, missingCount;
-	llvm::opt::InputArgList parsed = driver::getDriverOptTable().ParseArgs(
+	llvm::opt::InputArgList parsed = getDriverOptTable().ParseArgs(
 		llvm::ArrayRef(argv + 1, argc - 1), missingIndex, missingCount);
 	if (missingCount) {
 		llvm::errs() << "cpp-bundle: missing argument to " << parsed.getArgString(missingIndex) << "\n";
@@ -242,7 +242,7 @@ int main(int argc, const char** argv) {
 	std::vector<std::string> files, args;
 	std::set<unsigned> inputs;
 	for (const llvm::opt::Arg* a : parsed)
-		if (a->getOption().matches(driver::options::OPT_INPUT)) inputs.insert(a->getIndex());
+		if (a->getOption().matches(options::OPT_INPUT)) inputs.insert(a->getIndex());
 	for (int i = 1; i < argc; i++) (inputs.count(i - 1) ? files : args).push_back(argv[i]);
 	if (files.empty()) {
 		llvm::errs() << usage;

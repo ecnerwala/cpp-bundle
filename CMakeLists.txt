@@ -54,10 +54,13 @@ static_libs(bundle_clang_libs
 	clangTooling clangFrontend clangDriver clangParse clangSerialization clangSema
 	clangEdit clangAnalysis clangASTMatchers clangAST clangToolingCore
 	clangToolingInclusions clangRewrite clangFormat clangLex clangBasic clangSupport
-	clangAPINotes)
+	clangAPINotes clangOptions clangDependencyScanning clangAnalysisLifetimeSafety
+	clangScalableStaticAnalysisFrontend clangScalableStaticAnalysisAnalyses
+	clangScalableStaticAnalysisSourceTransformation clangScalableStaticAnalysisCore
+	clangUnifiedSymbolResolution)
 llvm_static_libs(bundle_llvm_libs
 	support option targetparser frontendopenmp frontendhlsl bitreader bitstreamreader
-	profiledata windowsdriver demangle binaryformat core)
+	profiledata windowsdriver demangle binaryformat core plugins)
 target_link_libraries(cpp-bundle PRIVATE
 	${group_start} ${bundle_clang_libs} ${bundle_llvm_libs} ${group_end})
 

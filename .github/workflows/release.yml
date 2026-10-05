@@ -30,10 +30,10 @@ jobs:
         run: docker build --output type=local,dest=dist .
       - if: runner.os == 'macOS'
         run: |
-          brew install llvm@20
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"
+          brew install llvm
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"
           cmake --build build -j"$(sysctl -n hw.ncpu)"
-          CXX="$(brew --prefix llvm@20)/bin/clang++" ctest --test-dir build --output-on-failure
+          CXX="$(brew --prefix llvm)/bin/clang++" ctest --test-dir build --output-on-failure
           mkdir dist && cp build/cpp-bundle build/cpp-minify dist && strip dist/cpp-bundle dist/cpp-minify
           otool -L dist/cpp-bundle dist/cpp-minify
           echo "CPP_BUNDLE_WHEEL_TAG=py3-none-macosx_$(sw_vers -productVersion | cut -d. -f1)_0_$(uname -m)" >> "$GITHUB_ENV"

@@ -66,14 +66,14 @@ tags them with the glibc floor the binaries actually need.
 
 ## Building
 
-Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (20 is what CI
-uses; 16+ should work); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu
-(macOS: `brew install llvm@20` and `-DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"`):
+Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (23 is what CI
+uses); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu
+(macOS: `brew install llvm` and `-DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"`):
 
 ```sh
-wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
-sudo apt-get install -y clang-20 libclang-20-dev llvm-20-dev
-cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
+wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 23
+sudo apt-get install -y clang-23 libclang-23-dev llvm-23-dev
+cmake -S . -B build -DClang_DIR=/usr/lib/llvm-23/lib/cmake/clang
 cmake --build build
 ctest --test-dir build
 ```

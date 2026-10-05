@@ -6,19 +6,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
-          sudo apt-get install -y clang-20 libclang-20-dev llvm-20-dev
-      - run: cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 23
+          sudo apt-get install -y clang-23 libclang-23-dev llvm-23-dev
+      - run: cmake -S . -B build -DClang_DIR=/usr/lib/llvm-23/lib/cmake/clang
       - run: cmake --build build
       - run: ctest --test-dir build --output-on-failure
   macos:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - run: brew install llvm@20
-      - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"
+      - run: brew install llvm
+      - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"
       - run: cmake --build build
-      - run: CXX="$(brew --prefix llvm@20)/bin/clang++" ctest --test-dir build --output-on-failure
+      - run: CXX="$(brew --prefix llvm)/bin/clang++" ctest --test-dir build --output-on-failure
       - run: otool -L build/cpp-bundle build/cpp-minify
   docker:
     runs-on: ubuntu-24.04
