@@ -14,12 +14,15 @@ using namespace clang;
 
 namespace {
 
-// What clang uses for -std=c++23.
-LangOptions cxxLangOpts() {
-	LangOptions lo;
-	std::vector<std::string> includes;
-	LangOptions::setLangDefaults(
-		lo, Language::CXX, llvm::Triple(llvm::sys::getDefaultTargetTriple()), includes, LangStandard::lang_gnucxx29);
+// What clang uses for -std=gnu++2d.
+const LangOptions& cxxLangOpts() {
+	static const LangOptions lo = [] {
+		LangOptions lo;
+		std::vector<std::string> includes;
+		LangOptions::setLangDefaults(
+			lo, Language::CXX, llvm::Triple(llvm::sys::getDefaultTargetTriple()), includes, LangStandard::lang_gnucxx29);
+		return lo;
+	}();
 	return lo;
 }
 
@@ -38,19 +41,34 @@ bool needSpace(llvm::StringRef a, llvm::StringRef b) {
 struct Tok {
 	llvm::StringRef text;
 	tok::TokenKind kind;
-	bool sol;
+	bool sol;        // first token on its line (comments do not count)
+	std::string ws;  // whitespace since the previous token, comments removed
+	bool comment;    // a comment was removed from ws
 };
 
 std::vector<Tok> lexAll(llvm::StringRef code) {
 	Lexer lex(SourceLocation(), cxxLangOpts(), code.data(), code.data(), code.data() + code.size());
-	lex.SetCommentRetentionState(false);
+	lex.SetCommentRetentionState(true);
 	std::vector<Tok> out;
 	Token tok;
+	const char* prev = code.data();
+	Tok cur{};
 	while (true) {
 		lex.LexFromRawLexer(tok);
 		if (tok.is(tok::eof)) break;
 		const char* end = lex.getBufferLocation();
-		out.push_back({llvm::StringRef(end - tok.getLength(), tok.getLength()), tok.getKind(), tok.isAtStartOfLine()});
+		const char* begin = end - tok.getLength();
+		cur.ws.append(prev, begin);
+		cur.sol |= tok.isAtStartOfLine();
+		prev = end;
+		if (tok.is(tok::comment)) {
+			cur.comment = true;
+			continue;
+		}
+		cur.text = llvm::StringRef(begin, tok.getLength());
+		cur.kind = tok.getKind();
+		out.push_back(std::move(cur));
+		cur = {};
 	}
 	return out;
 }
@@ -78,12 +96,20 @@ std::string unescape(llvm::StringRef s) {
 	return r;
 }
 
-// Re-emits the token stream with comments dropped and whitespace reduced to what separates
-// tokens; directives keep one space wherever they had whitespace and stay on their own line.
+enum class Level { light, medium, full };
+
+struct Line {
+	std::string text;
+	bool alone;  // directive or "// file" marker: stays on its own line
+	llvm::StringRef first, last;
+};
+
+// One Line per source line, comments dropped. light keeps the line's own whitespace
+// (indentation, spacing) and only drops trailing whitespace; otherwise whitespace is reduced
+// to what separates tokens, except that directives keep one space wherever they had some.
 // #line directives become one "// file" line per run of lines from the same file.
-std::string minify(llvm::StringRef code) {
-	std::vector<Tok> toks = lexAll(code);
-	std::string out;
+std::vector<Line> toLines(const std::vector<Tok>& toks, Level level) {
+	std::vector<Line> out;
 	llvm::StringRef file, pending;
 	for (size_t i = 0; i < toks.size(); i++) {
 		if (llvm::StringRef f = lineDirectiveFile(toks, i); !f.empty()) {
@@ -95,24 +121,50 @@ std::string minify(llvm::StringRef code) {
 		if (t.sol && !pending.empty()) {
 			if (pending != file) {
 				file = pending;
-				if (!out.empty()) out += '\n';
-				out += "// " + unescape(file);
+				out.push_back({"// " + unescape(file), true, "", ""});
 			}
 			pending = "";
 		}
-		if (!out.empty()) {
-			if (t.sol) out += '\n';
-			else {
-				size_t j = i;
-				while (!toks[j].sol) --j;
-				bool directive = toks[j].kind == tok::hash;
-				const Tok& p = toks[i - 1];
-				if (directive ? t.text.data() > p.text.end() : needSpace(p.text, t.text)) out += ' ';
-			}
+		if (t.sol || out.empty()) {
+			out.push_back({"", t.kind == tok::hash, t.text, t.text});
+			if (level == Level::light)
+				if (size_t nl = t.ws.rfind('\n'); nl != std::string::npos) out.back().text = t.ws.substr(nl + 1);
+		} else {
+			Line& l = out.back();
+			const Tok& p = toks[i - 1];
+			if (level == Level::light) {
+				if (!t.comment || t.ws.find('\n') != std::string::npos) l.text += t.ws;
+				else if (!t.ws.empty() || needSpace(p.text, t.text)) l.text += ' ';
+			} else if (l.alone ? t.text.data() > p.text.end() : needSpace(p.text, t.text)) l.text += ' ';
 		}
-		out += t.text;
+		out.back().text += t.text;
+		out.back().last = t.text;
 	}
-	if (!out.empty()) out += '\n';
+	return out;
+}
+
+// full packs consecutive non-directive lines onto shared lines of up to width characters.
+std::string join(const std::vector<Line>& lines, Level level, size_t width) {
+	std::string out, packed;
+	llvm::StringRef last;
+	auto flush = [&] {
+		if (packed.empty()) return;
+		out += packed + "\n";
+		packed.clear();
+	};
+	for (const Line& l : lines) {
+		if (level != Level::full || l.alone) {
+			flush();
+			out += l.text + "\n";
+			continue;
+		}
+		if (!packed.empty() && packed.size() + 1 + l.text.size() > width) flush();
+		if (!packed.empty() && needSpace(last, l.first)) packed += ' ';
+		packed += l.text;
+		last = l.last;
+		if (l.text.find('\n') != std::string::npos) flush();
+	}
+	flush();
 	return out;
 }
 
@@ -132,23 +184,35 @@ std::vector<std::string> tokens(llvm::StringRef code) {
 } // namespace
 
 const char* usage =
-	"usage: cpp-minify [--check] [FILE]\n"
+	"usage: cpp-minify [--level light|medium|full] [--width N] [--check] [FILE]\n"
 	"\n"
 	"Strips comments and unneeded whitespace from FILE (default: stdin) to stdout.\n"
 	"\n"
-	"  --check  fail unless the output lexes to the same tokens as the input\n";
+	"  --level light   drop comments, blank lines and trailing whitespace only\n"
+	"  --level medium  also indentation and spaces between tokens (default)\n"
+	"  --level full    also pack statements onto lines of up to --width (120) characters\n"
+	"  --check         fail unless the output lexes to the same tokens as the input\n";
 
 int main(int argc, const char** argv) {
 	bool check = false;
+	Level level = Level::medium;
+	size_t width = 120;
 	const char* file = nullptr;
 	for (int i = 1; i < argc; i++) {
 		llvm::StringRef a = argv[i];
+		llvm::StringRef value;
+		bool hasValue = (a == "--level" || a == "--width") && i + 1 < argc;
+		if (hasValue) value = argv[++i];
 		if (a == "--check") check = true;
+		else if (a == "--level" && value == "light") level = Level::light;
+		else if (a == "--level" && value == "medium") level = Level::medium;
+		else if (a == "--level" && value == "full") level = Level::full;
+		else if (a == "--width" && !value.getAsInteger(10, width) && width > 0) {}
 		else if (a == "-h" || a == "--help") {
 			llvm::outs() << usage;
 			return 0;
 		} else if (a.starts_with("-") && a != "-") {
-			llvm::errs() << "cpp-minify: unknown option " << a << "\n" << usage;
+			llvm::errs() << "cpp-minify: bad option " << a << (hasValue ? " " : "") << value << "\n" << usage;
 			return 2;
 		} else if (file) {
 			llvm::errs() << usage;
@@ -162,7 +226,7 @@ int main(int argc, const char** argv) {
 		return 1;
 	}
 	llvm::StringRef in = (*buf)->getBuffer();
-	std::string out = minify(in);
+	std::string out = join(toLines(lexAll(in), level), level, width);
 	if (check) {
 		std::vector<std::string> a = tokens(in), b = tokens(out);
 		for (size_t i = 0; i < a.size() || i < b.size(); i++) {

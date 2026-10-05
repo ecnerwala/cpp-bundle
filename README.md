@@ -37,12 +37,14 @@ cpp-bundle -include bits/stdc++.h -include cassert -std=c++23 -I src \
 ## Minifying
 
 ```sh
-cpp-minify [--check] [FILE]
+cpp-minify [--level light|medium|full] [--width N] [--check] [FILE]
 ```
 
-Strips comments and all whitespace that is not needed to separate tokens from `FILE`
-(default: stdin), keeping one token line per source line and directives on their own
-lines. `#line` markers (as emitted by `cpp-bundle`) are replaced by one `// path` comment
+Strips comments and whitespace from `FILE` (default: stdin). `light` drops only comments,
+blank lines and trailing whitespace; `medium` (default) also drops indentation and every
+space not needed to separate tokens, keeping one line per source line; `full` additionally
+packs consecutive lines onto lines of up to `--width` (120) characters. Directives always
+keep their own line (with single spaces). `#line` markers (as emitted by `cpp-bundle`) are replaced by one `// path` comment
 per run of lines from the same file, so the output is safe to paste anywhere and still
 says where each part came from. Identifiers are not renamed, so the result works for
 anything clang can lex, bundled or not. `--check` re-lexes the output and fails unless it
