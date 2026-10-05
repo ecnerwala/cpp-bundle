@@ -1,0 +1,33 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 23
+          sudo apt-get install -y clang-23 libclang-23-dev llvm-23-dev
+      - run: cmake -S . -B build -DClang_DIR=/usr/lib/llvm-23/lib/cmake/clang
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew update && brew install llvm
+      - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"
+      - run: cmake --build build
+      - run: CXX="$(brew --prefix llvm)/bin/clang++" ctest --test-dir build --output-on-failure
+      - run: otool -L build/cpp-bundle build/cpp-minify
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --output type=local,dest=dist .
+      - run: ls -l dist && dist/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
+      - uses: astral-sh/setup-uv@v7
+      - run: |
+          CPP_BUNDLE_VERSION=0.0.0 uv build --wheel
+          uvx --with patchelf auditwheel repair -w wheelhouse dist/*.whl
+          uvx --from wheelhouse/*.whl cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null

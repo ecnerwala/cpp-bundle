@@ -1,0 +1,20 @@
+// Stand-in for libstdc++'s <bits/stdc++.h> so fixture outputs compile with libc++ too.
+#pragma once
+#include <algorithm>
+#include <array>
+#include <bitset>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <iostream>
+#include <map>
+#include <numeric>
+#include <set>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
