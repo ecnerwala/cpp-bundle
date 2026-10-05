@@ -2,9 +2,12 @@
 # usage: tests/run.sh path/to/cpp-bundle path/to/cpp-minify
 # Each tests/fixtures/*/ has main.cpp (+ inc/), expected.cpp, expected.min.cpp and
 # optionally args (extra clang options) and files (inputs, default main.cpp).
+# Expected outputs are also syntax-checked with $CXX; tests/sysinc stands in for
+# <bits/stdc++.h> where the toolchain lacks it.
 set -eu
 bin=$(realpath "$1")
 minify=$(realpath "$2")
+sysinc=$(realpath "$(dirname "$0")/sysinc")
 cd "$(dirname "$0")/fixtures"
 fail=0
 for d in */; do
@@ -15,7 +18,7 @@ for d in */; do
 	(cd "$d" && "$bin" $args -std=c++23 -I inc $files) | "$minify" --check | diff "$d/expected.min.cpp" - || fail=1
 	"$minify" "$d/expected.cpp" | diff "$d/expected.min.cpp" - || fail=1
 	for f in "$d/expected.cpp" "$d/expected.min.cpp"; do
-		"${CXX:-c++}" -std=c++23 -fsyntax-only -x c++ "$f" || fail=1
+		"${CXX:-c++}" -std=c++23 -fsyntax-only -I "$sysinc" -x c++ "$f" || fail=1
 	done
 done
 exit $fail
