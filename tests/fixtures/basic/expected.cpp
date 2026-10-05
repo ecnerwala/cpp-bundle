@@ -1,6 +1,8 @@
 
 #pragma GCC optimize("unroll-loops")
+#if defined(__x86_64__) || defined(__i386__)
 #pragma GCC target("avx2") // Requires AVX2
+#endif
 
 // See https://codeforces.com/blog/entry/96344
 

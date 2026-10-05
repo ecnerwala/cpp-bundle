@@ -1,7 +1,9 @@
 #pragma GCC optimize("O3")
 #pragma GCC optimize("unroll-loops")
 #pragma GCC optimize("Ofast")
+#if defined(__x86_64__) || defined(__i386__)
 #pragma GCC target("sse,sse2,sse3,ssse3,sse4,popcnt,abm,bmi,bmi2,mmx,avx,avx2,fma") // Requires AVX2
+#endif
 #pragma clang optimize off
 #pragma clang attribute push(__attribute__((noinline)), apply_to = function)
 inline int opt(int x) { return x * 2; }
@@ -16,7 +18,9 @@ _Pragma("GCC diagnostic pop")
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#if defined(__x86_64__) || defined(__i386__)
 #pragma GCC target("avx2")
+#endif
 #pragma GCC diagnostic pop
 inline int guarded() { return 1; }
 #endif

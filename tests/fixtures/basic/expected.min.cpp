@@ -1,5 +1,7 @@
 #pragma GCC optimize("unroll-loops")
+#if defined(__x86_64__) || defined(__i386__)
 #pragma GCC target("avx2")
+#endif
 namespace wala{
 inline void disable_denormal_floats(){
 #if defined(__x86_64__) || defined(__i386__)

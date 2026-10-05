@@ -25,6 +25,7 @@ jobs:
           version=0.0.0
           [ "$GITHUB_REF_TYPE" = tag ] && version=${GITHUB_REF_NAME#v}
           echo "CPP_BUNDLER_VERSION=$version" >> "$GITHUB_ENV"
+          echo "ARCHIVE=cpp-bundler-v$version-${{ matrix.target }}" >> "$GITHUB_ENV"
       - if: runner.os == 'Linux'
         run: docker build --output type=local,dest=dist .
       - if: runner.os == 'macOS'
@@ -37,9 +38,8 @@ jobs:
           otool -L dist/cpp-bundle dist/cpp-minify
           echo "CPP_BUNDLER_WHEEL_TAG=py3-none-macosx_$(sw_vers -productVersion | cut -d. -f1)_0_$(uname -m)" >> "$GITHUB_ENV"
       - run: |
-          name=cpp-bundler-${GITHUB_REF_NAME}-${{ matrix.target }}
-          tar -C dist -czf "$name.tar.gz" cpp-bundle cpp-minify
-          shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          tar -C dist -czf "$ARCHIVE.tar.gz" cpp-bundle cpp-minify
+          shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
       - run: |
           pipx run build --wheel
           if [ "$RUNNER_OS" = Linux ]; then
