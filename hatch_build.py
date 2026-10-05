@@ -1,10 +1,11 @@
 import os
+import platform
 import sys
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 # `auditwheel repair` turns this into the manylinux tag of the glibc floor actually required.
-DEFAULT_TAG = "py3-none-linux_x86_64"
+DEFAULT_TAG = f"py3-none-linux_{platform.machine()}"
 
 
 class CustomBuildHook(BuildHookInterface):
