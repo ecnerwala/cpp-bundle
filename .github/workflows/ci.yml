@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - run: brew install llvm
+      - run: brew install llvm lld
       - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"
       - run: cmake --build build
       - run: CXX="$(brew --prefix llvm)/bin/clang++" ctest --test-dir build --output-on-failure
