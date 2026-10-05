@@ -69,6 +69,15 @@ llvm::StringRef lineDirectiveFile(const std::vector<Tok>& toks, size_t i) {
 	return "";
 }
 
+std::string unescape(llvm::StringRef s) {
+	std::string r;
+	for (size_t i = 0; i < s.size(); i++) {
+		if (s[i] == '\\' && i + 1 < s.size()) i++;
+		r += s[i];
+	}
+	return r;
+}
+
 // Re-emits the token stream with comments dropped and whitespace reduced to what separates
 // tokens; directives keep one space wherever they had whitespace and stay on their own line.
 // #line directives become one "// file" line per run of lines from the same file.
@@ -87,7 +96,7 @@ std::string minify(llvm::StringRef code) {
 			if (pending != file) {
 				file = pending;
 				if (!out.empty()) out += '\n';
-				out += "// " + file.str();
+				out += "// " + unescape(file);
 			}
 			pending = "";
 		}
