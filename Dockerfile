@@ -2,11 +2,12 @@
 FROM ubuntu:22.04 AS build
 ARG LLVM_VERSION=20
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt() { apt-get -o Acquire::Retries=5 "$@"; }; apt update && apt install -y --no-install-recommends ca-certificates wget cmake make g++ \
-    && wget -q --tries=10 --waitretry=5 -O /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
+RUN retry() { for _ in 1 2 3 4 5; do "$@" && return 0; sleep 15; done; return 1; }; \
+    retry apt-get update && retry apt-get install -y --no-install-recommends ca-certificates wget cmake make g++ \
+    && retry wget -q -O /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_VERSION} main" > /etc/apt/sources.list.d/llvm.list \
-    && apt update \
-    && apt install -y --no-install-recommends clang-${LLVM_VERSION} libclang-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev \
+    && retry apt-get update \
+    && retry apt-get install -y --no-install-recommends clang-${LLVM_VERSION} libclang-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
