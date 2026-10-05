@@ -39,7 +39,15 @@ FetchContent_Declare(zstd
 	URL_HASH SHA256=eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3
 	SOURCE_SUBDIR build/cmake)
 FetchContent_MakeAvailable(zlib zstd)
-set(system_libs zlibstatic libzstd_static rt dl m)
+set(system_libs zlibstatic libzstd_static dl m)
+if(APPLE)
+	set(group_start)
+	set(group_end)
+else()
+	list(APPEND system_libs rt)
+	set(group_start -Wl,--start-group)
+	set(group_end -Wl,--end-group)
+endif()
 
 add_executable(cpp-bundle src/cpp_bundle.cpp)
 static_libs(bundle_clang_libs
@@ -51,13 +59,13 @@ llvm_static_libs(bundle_llvm_libs
 	support option targetparser frontendopenmp frontendhlsl bitreader bitstreamreader
 	profiledata windowsdriver demangle binaryformat core)
 target_link_libraries(cpp-bundle PRIVATE
-	-Wl,--start-group ${bundle_clang_libs} ${bundle_llvm_libs} -Wl,--end-group)
+	${group_start} ${bundle_clang_libs} ${bundle_llvm_libs} ${group_end})
 
 add_executable(cpp-minify src/cpp_minify.cpp)
 static_libs(minify_clang_libs clangLex clangBasic)
 llvm_static_libs(minify_llvm_libs support targetparser frontendopenmp demangle)
 target_link_libraries(cpp-minify PRIVATE
-	-Wl,--start-group ${minify_clang_libs} ${minify_llvm_libs} -Wl,--end-group)
+	${group_start} ${minify_clang_libs} ${minify_llvm_libs} ${group_end})
 
 foreach(t cpp-bundle cpp-minify)
 	target_compile_features(${t} PRIVATE cxx_std_20)
@@ -67,7 +75,9 @@ foreach(t cpp-bundle cpp-minify)
 		target_compile_options(${t} PRIVATE -fno-rtti)
 	endif()
 	target_link_libraries(${t} PRIVATE ${system_libs})
-	target_link_options(${t} PRIVATE -static-libstdc++ -static-libgcc)
+	if(NOT APPLE)
+		target_link_options(${t} PRIVATE -static-libstdc++ -static-libgcc)
+	endif()
 endforeach()
 
 install(TARGETS cpp-bundle cpp-minify)

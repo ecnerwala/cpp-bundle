@@ -46,9 +46,9 @@ input's tokens.
 
 ## Installing
 
-Every GitHub release has a Linux x86_64 tarball of the two binaries and the same binaries
-as a Python wheel, so projects that already use `uv`/`pip` get them on `PATH` with no extra
-tooling:
+Every GitHub release has a tarball of the two binaries per platform (Linux x86_64/aarch64,
+macOS arm64/x86_64) and the same binaries as Python wheels, so projects that already use
+`uv`/`pip` get them on `PATH` with no extra tooling:
 
 ```sh
 uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
@@ -56,14 +56,15 @@ uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases
 uv add "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
 ```
 
-The wheel contains no Python code; `pyproject.toml` / `hatch_build.py` just wrap `dist/`
-(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a Docker build), and `auditwheel repair`
-tags it with the glibc floor the binaries actually need.
+The wheels contain no Python code; `pyproject.toml` / `hatch_build.py` just wrap `dist/`
+(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a build), and on Linux `auditwheel repair`
+tags them with the glibc floor the binaries actually need.
 
 ## Building
 
 Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (20 is what CI
-uses; 16+ should work); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu:
+uses; 16+ should work); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu
+(macOS: `brew install llvm@20` and `-DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"`):
 
 ```sh
 wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
@@ -73,19 +74,21 @@ cmake --build build
 ctest --test-dir build
 ```
 
-The binaries link clang/LLVM, libstdc++, zlib and zstd statically; the only runtime dependency is glibc.
+The binaries link clang/LLVM, libstdc++, zlib and zstd statically; the only runtime dependency is
+libc (glibc on Linux, the system libc++/libSystem on macOS).
 
 ### Release binaries
 
 `Dockerfile` builds the same thing reproducibly on Ubuntu 22.04 (glibc 2.35), so the result runs
-on any x86_64 Linux with glibc >= 2.35:
+on any Linux (x86_64 or aarch64, matching the Docker host) with glibc >= 2.35:
 
 ```sh
 docker build --output type=local,dest=dist .
 ```
 
-The `release` workflow runs this for every `v*` tag and attaches
-`cpp-bundler-<tag>-linux-x86_64.tar.gz` and the wheel to the GitHub release.
+The `release` workflow runs this on x86_64 and arm64 runners (and a native Homebrew-LLVM build
+on macOS arm64/x86_64) for every `v*` tag and attaches `cpp-bundler-<tag>-<platform>.tar.gz`
+and the wheels to the GitHub release.
 
 ## License
 

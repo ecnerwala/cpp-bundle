@@ -6,30 +6,58 @@ on:
 permissions:
   contents: write
 jobs:
-  linux-x86_64:
-    runs-on: ubuntu-24.04
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, target: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, target: linux-aarch64 }
+          - { os: macos-14, target: macos-arm64 }
+          - { os: macos-15-intel, target: macos-x86_64 }
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --output type=local,dest=dist .
-      - run: |
-          name=cpp-bundler-${GITHUB_REF_NAME}-linux-x86_64
-          tar -C dist -czf "$name.tar.gz" cpp-bundle cpp-minify
-          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
-      - run: |
+      - name: version
+        run: |
           version=0.0.0
           [ "$GITHUB_REF_TYPE" = tag ] && version=${GITHUB_REF_NAME#v}
-          CPP_BUNDLER_VERSION=$version pipx run build --wheel
+          echo "CPP_BUNDLER_VERSION=$version" >> "$GITHUB_ENV"
+      - if: runner.os == 'Linux'
+        run: docker build --output type=local,dest=dist .
+      - if: runner.os == 'macOS'
+        run: |
+          brew install llvm@20
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"
+          cmake --build build -j"$(sysctl -n hw.ncpu)"
+          ctest --test-dir build --output-on-failure
+          mkdir dist && cp build/cpp-bundle build/cpp-minify dist && strip dist/cpp-bundle dist/cpp-minify
+          otool -L dist/cpp-bundle dist/cpp-minify
+          echo "CPP_BUNDLER_WHEEL_TAG=py3-none-macosx_$(sw_vers -productVersion | cut -d. -f1)_0_$(uname -m)" >> "$GITHUB_ENV"
+      - run: |
+          name=cpp-bundler-${GITHUB_REF_NAME}-${{ matrix.target }}
+          tar -C dist -czf "$name.tar.gz" cpp-bundle cpp-minify
+          shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+      - run: |
+          pipx run build --wheel
           python3 -m venv /tmp/aw && /tmp/aw/bin/pip install auditwheel patchelf
-          /tmp/aw/bin/auditwheel repair -w wheelhouse dist/*.whl
+          if [ "$RUNNER_OS" = Linux ]; then /tmp/aw/bin/auditwheel repair -w wheelhouse dist/*.whl; else mkdir wheelhouse && cp dist/*.whl wheelhouse; fi
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install wheelhouse/*.whl
           /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
-      - if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes cpp-bundler-*.tar.gz* wheelhouse/*.whl
       - uses: actions/upload-artifact@v4
         with:
-          name: cpp-bundler-linux-x86_64
+          name: cpp-bundler-${{ matrix.target }}
           path: |
             cpp-bundler-*.tar.gz*
             wheelhouse/*.whl
+  publish:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes cpp-bundler-*.tar.gz* *.whl

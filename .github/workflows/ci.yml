@@ -11,6 +11,15 @@ jobs:
       - run: cmake -S . -B build -DClang_DIR=/usr/lib/llvm-20/lib/cmake/clang
       - run: cmake --build build
       - run: ctest --test-dir build --output-on-failure
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install llvm@20
+      - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+      - run: otool -L build/cpp-bundle build/cpp-minify
   docker:
     runs-on: ubuntu-24.04
     steps:
