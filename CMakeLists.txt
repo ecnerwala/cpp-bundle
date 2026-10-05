@@ -43,6 +43,11 @@ set(system_libs zlibstatic libzstd_static dl m)
 if(APPLE)
 	set(group_start)
 	set(group_end)
+	# Apple's ld reads the LTO bitcode in Homebrew's clang archives through libLTO; the
+	# system one is too old for the bitcode a newer LLVM writes, so point it at LLVM's own.
+	if(EXISTS ${LLVM_LIBRARY_DIR}/libLTO.dylib)
+		add_link_options(-Wl,-lto_library,${LLVM_LIBRARY_DIR}/libLTO.dylib)
+	endif()
 else()
 	list(APPEND system_libs rt)
 	set(group_start -Wl,--start-group)
