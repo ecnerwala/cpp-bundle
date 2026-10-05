@@ -28,6 +28,6 @@ jobs:
       - run: ls -l dist && dist/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
       - uses: astral-sh/setup-uv@v7
       - run: |
-          CPP_BUNDLER_VERSION=0.0.0 uv build --wheel
+          CPP_BUNDLE_VERSION=0.0.0 uv build --wheel
           uvx --with patchelf auditwheel repair -w wheelhouse dist/*.whl
           uvx --from wheelhouse/*.whl cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null

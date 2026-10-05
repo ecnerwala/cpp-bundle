@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(cpp-bundler C CXX)
+project(cpp-bundle C CXX)
 
 find_package(Clang REQUIRED CONFIG)
 message(STATUS "Using Clang ${LLVM_PACKAGE_VERSION} from ${Clang_DIR}")

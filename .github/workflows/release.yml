@@ -24,8 +24,8 @@ jobs:
         run: |
           version=0.0.0
           [ "$GITHUB_REF_TYPE" = tag ] && version=${GITHUB_REF_NAME#v}
-          echo "CPP_BUNDLER_VERSION=$version" >> "$GITHUB_ENV"
-          echo "ARCHIVE=cpp-bundler-v$version-${{ matrix.target }}" >> "$GITHUB_ENV"
+          echo "CPP_BUNDLE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "ARCHIVE=cpp-bundle-v$version-${{ matrix.target }}" >> "$GITHUB_ENV"
       - if: runner.os == 'Linux'
         run: docker build --output type=local,dest=dist .
       - if: runner.os == 'macOS'
@@ -36,7 +36,7 @@ jobs:
           CXX="$(brew --prefix llvm@20)/bin/clang++" ctest --test-dir build --output-on-failure
           mkdir dist && cp build/cpp-bundle build/cpp-minify dist && strip dist/cpp-bundle dist/cpp-minify
           otool -L dist/cpp-bundle dist/cpp-minify
-          echo "CPP_BUNDLER_WHEEL_TAG=py3-none-macosx_$(sw_vers -productVersion | cut -d. -f1)_0_$(uname -m)" >> "$GITHUB_ENV"
+          echo "CPP_BUNDLE_WHEEL_TAG=py3-none-macosx_$(sw_vers -productVersion | cut -d. -f1)_0_$(uname -m)" >> "$GITHUB_ENV"
       - run: |
           tar -C dist -czf "$ARCHIVE.tar.gz" cpp-bundle cpp-minify
           shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
@@ -51,9 +51,9 @@ jobs:
           uvx --from wheelhouse/*.whl cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
       - uses: actions/upload-artifact@v4
         with:
-          name: cpp-bundler-${{ matrix.target }}
+          name: cpp-bundle-${{ matrix.target }}
           path: |
-            cpp-bundler-*.tar.gz*
+            cpp-bundle-*.tar.gz*
             wheelhouse/*.whl
   publish:
     needs: build
@@ -67,4 +67,4 @@ jobs:
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes cpp-bundler-*.tar.gz* *.whl
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes cpp-bundle-*.tar.gz* *.whl

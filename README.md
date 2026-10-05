@@ -1,4 +1,4 @@
-# cpp-bundler
+# cpp-bundle
 
 `cpp-bundle` inlines a C++ file's `#include`s of your own headers into one file, the way
 you would paste them by hand: your code is copied verbatim (comments, macros, pragmas,
@@ -51,13 +51,13 @@ macOS arm64/x86_64) and the same binaries as Python wheels, so projects that alr
 `uv`/`pip` get them on `PATH` with no extra tooling:
 
 ```sh
-uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
+uv tool install "cpp-bundle @ https://github.com/ecnerwala/cpp-bundle/releases/download/v0.1.0/cpp_bundle-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
 # or, inside a uv project (pins it in uv.lock):
-uv add "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
+uv add "cpp-bundle @ https://github.com/ecnerwala/cpp-bundle/releases/download/v0.1.0/cpp_bundle-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
 ```
 
 The wheels contain no Python code; `pyproject.toml` / `hatch_build.py` just wrap `dist/`
-(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a build), and on Linux `auditwheel repair`
+(`CPP_BUNDLE_VERSION=x.y.z uv build --wheel` after a build), and on Linux `auditwheel repair`
 tags them with the glibc floor the binaries actually need.
 
 ## Building
@@ -87,7 +87,7 @@ docker build --output type=local,dest=dist .
 ```
 
 The `release` workflow runs this on x86_64 and arm64 runners (and a native Homebrew-LLVM build
-on macOS arm64/x86_64) for every `v*` tag and attaches `cpp-bundler-<tag>-<platform>.tar.gz`
+on macOS arm64/x86_64) for every `v*` tag and attaches `cpp-bundle-<tag>-<platform>.tar.gz`
 and the wheels to the GitHub release.
 
 ## License

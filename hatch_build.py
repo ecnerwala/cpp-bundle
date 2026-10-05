@@ -14,4 +14,4 @@ class CustomBuildHook(BuildHookInterface):
             if not os.path.isfile(os.path.join(self.root, "dist", binary)):
                 sys.exit(f"dist/{binary} missing: build it first (docker build --output type=local,dest=dist .)")
         build_data["pure_python"] = False
-        build_data["tag"] = os.environ.get("CPP_BUNDLER_WHEEL_TAG", DEFAULT_TAG)
+        build_data["tag"] = os.environ.get("CPP_BUNDLE_WHEEL_TAG", DEFAULT_TAG)
