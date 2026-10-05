@@ -35,6 +35,15 @@ bool isPragmaOnce(llvm::StringRef line) {
 	return line.empty() || line.starts_with("//") || (line.starts_with("/*") && line.contains("*/"));
 }
 
+std::string quoted(llvm::StringRef s) {
+	std::string q = "\"";
+	for (char c : s) {
+		if (c == '\\' || c == '"') q += '\\';
+		q += c;
+	}
+	return q + "\"";
+}
+
 struct Frame {
 	FileID fid;
 	llvm::StringRef buf;
@@ -85,12 +94,14 @@ class Bundler : public PPCallbacks {
 	bool onTop(SourceLocation loc) const {
 		return !stack.empty() && sm.getFileID(loc) == stack.back().fid && !stack.back().opaque;
 	}
+	// #line for the presumed location of f.cursor, so a #line in the source stays in effect.
 	void lineMarker(Frame& f) {
 		f.marker = false;
-		llvm::SmallString<256> name = sm.getFileEntryRefForID(f.fid)->getName();
+		PresumedLoc loc = sm.getPresumedLoc(sm.getLocForStartOfFile(f.fid).getLocWithOffset(f.cursor));
+		llvm::SmallString<256> name(llvm::StringRef(loc.getFilename()));
 		llvm::sys::path::remove_dots(name, true);
 		if (llvm::StringRef(name).starts_with(cwd)) name.erase(name.begin(), name.begin() + cwd.size());
-		out += "#line " + std::to_string(sm.getLineNumber(f.fid, f.cursor)) + " \"" + std::string(name) + "\"\n";
+		out += "#line " + std::to_string(loc.getLine()) + " " + quoted(name) + "\n";
 	}
 
 public:
@@ -118,13 +129,19 @@ public:
 		}
 		nextOpaque = File.has_value();
 		std::string name = FileName.str();
-		if (!seen.insert(name).second || (!prelude && covered(name))) return;
+		if (!seen.insert(name).second || (!prelude && covered(name))) {
+			f.marker = true;
+			return;
+		}
 		out += "#include <" + name + ">\n";
 	}
 
 	bool FileNotFound(llvm::StringRef) override { return true; }
 
-	void FileSkipped(const FileEntryRef&, const Token&, SrcMgr::CharacteristicKind) override { nextOpaque = false; }
+	void FileSkipped(const FileEntryRef&, const Token&, SrcMgr::CharacteristicKind) override {
+		nextOpaque = false;
+		if (!stack.empty()) stack.back().marker = true;
+	}
 
 	void FileChanged(SourceLocation Loc, FileChangeReason Reason, SrcMgr::CharacteristicKind, FileID PrevFID) override {
 		if (Reason == EnterFile) {
@@ -254,9 +271,11 @@ int main(int argc, const char** argv) {
 			llvm::errs() << "cpp-bundle: file not found: " << f << "\n";
 			return 1;
 		}
-		mainSrc += "#include \"" + f + "\"\n";
+		llvm::SmallString<256> abs(f);
+		llvm::sys::fs::make_absolute(abs);
+		mainSrc += "#include \"" + std::string(abs) + "\"\n";
 	}
-	const char* mainName = "cpp-bundle-main.cpp";
+	const char* mainName = "/cpp-bundle/main.cpp";
 	args.insert(args.end(), {"-nostdinc", "-nostdinc++", "-x", "c++"});
 	tooling::FixedCompilationDatabase db(".", args);
 	tooling::ClangTool tool(db, {mainName});

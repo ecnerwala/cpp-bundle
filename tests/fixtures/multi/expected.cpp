@@ -11,6 +11,7 @@ inline Base engine(Base b) { return std::move(b); }
 #line 1 "inc/series.hpp"
 
 #include <algorithm>
+#line 6 "inc/series.hpp"
 inline void series(Base& b) { assert(!b.v.empty()); std::sort(b.v.begin(), b.v.end()); }
 #line 4 "main.cpp"
 int main() { Base b = engine(Base{{1}}); series(b); return 0; }

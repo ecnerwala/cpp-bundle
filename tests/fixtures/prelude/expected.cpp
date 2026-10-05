@@ -28,12 +28,14 @@ inline void disable_denormal_floats() {
 #ifndef G_HPP
 #define G_HPP
 // #include "nothing.hpp"
+#line 5 "inc/g.hpp"
 /* #include <map>
 */
 struct G { std::vector<int> v; };
 #endif // G_HPP
 #line 1 "inc/h.hpp"
 
+#line 4 "inc/h.hpp"
 #ifdef USE_MAP
 #include <map>
 #endif
