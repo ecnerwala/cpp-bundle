@@ -44,6 +44,21 @@ lines. Identifiers are not renamed, so the result works for anything clang can l
 bundled or not. `--check` re-lexes the output and fails unless it yields exactly the
 input's tokens.
 
+## Installing
+
+Every GitHub release has a Linux x86_64 tarball of the two binaries and the same binaries
+as a Python wheel, so projects that already use `uv`/`pip` get them on `PATH` with no extra
+tooling:
+
+```sh
+uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_35_x86_64.whl"
+# or, inside a uv project (pins it in uv.lock):
+uv add "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_35_x86_64.whl"
+```
+
+The wheel contains no Python code; `pyproject.toml` / `hatch_build.py` just wrap `dist/`
+(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a Docker build).
+
 ## Building
 
 Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (20 is what CI
@@ -69,7 +84,7 @@ docker build --output type=local,dest=dist .
 ```
 
 The `release` workflow runs this for every `v*` tag and attaches
-`cpp-bundler-<tag>-linux-x86_64.tar.gz` to the GitHub release.
+`cpp-bundler-<tag>-linux-x86_64.tar.gz` and the wheel to the GitHub release.
 
 ## License
 

@@ -17,3 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build --output type=local,dest=dist .
       - run: ls -l dist && dist/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
+      - run: |
+          CPP_BUNDLER_VERSION=0.0.0 pipx run build --wheel
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install dist/*.whl
+          /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null

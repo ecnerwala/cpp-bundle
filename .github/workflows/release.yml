@@ -15,11 +15,19 @@ jobs:
           name=cpp-bundler-${GITHUB_REF_NAME}-linux-x86_64
           tar -C dist -czf "$name.tar.gz" cpp-bundle cpp-minify
           sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - run: |
+          version=0.0.0
+          [ "$GITHUB_REF_TYPE" = tag ] && version=${GITHUB_REF_NAME#v}
+          CPP_BUNDLER_VERSION=$version pipx run build --wheel
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install dist/*.whl
+          /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
       - if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --generate-notes cpp-bundler-*.tar.gz*
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes cpp-bundler-*.tar.gz* dist/*.whl
       - uses: actions/upload-artifact@v4
         with:
           name: cpp-bundler-linux-x86_64
-          path: cpp-bundler-*.tar.gz*
+          path: |
+            cpp-bundler-*.tar.gz*
+            dist/*.whl
