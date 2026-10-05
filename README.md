@@ -51,7 +51,7 @@ yields exactly the input's tokens (`#line` directives excepted).
 ## Installing
 
 Every GitHub release has a tarball of the two binaries per platform (Linux x86_64/aarch64,
-macOS arm64/x86_64) and the same binaries as Python wheels, so projects that already use
+macOS arm64) and the same binaries as Python wheels, so projects that already use
 `uv`/`pip` get them on `PATH` with no extra tooling:
 
 ```sh
@@ -91,7 +91,7 @@ docker build --output type=local,dest=dist .
 ```
 
 The `release` workflow runs this on x86_64 and arm64 runners (and a native Homebrew-LLVM build
-on macOS arm64/x86_64) for every `v*` tag and attaches `cpp-bundle-<tag>-<platform>.tar.gz`
+on macOS arm64) for every `v*` tag and attaches `cpp-bundle-<tag>-<platform>.tar.gz`
 and the wheels to the GitHub release.
 
 ## License
