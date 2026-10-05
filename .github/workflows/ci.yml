@@ -26,9 +26,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker build --output type=local,dest=dist .
       - run: ls -l dist && dist/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
+      - uses: astral-sh/setup-uv@v7
       - run: |
-          CPP_BUNDLER_VERSION=0.0.0 pipx run build --wheel
-          python3 -m venv /tmp/aw && /tmp/aw/bin/pip install auditwheel patchelf
-          /tmp/aw/bin/auditwheel repair -w wheelhouse dist/*.whl
-          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install wheelhouse/*.whl
-          /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
+          CPP_BUNDLER_VERSION=0.0.0 uv build --wheel
+          uvx --with patchelf auditwheel repair -w wheelhouse dist/*.whl
+          uvx --from wheelhouse/*.whl cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
