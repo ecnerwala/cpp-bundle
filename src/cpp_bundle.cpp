@@ -94,13 +94,17 @@ class Bundler : public PPCallbacks {
 	bool onTop(SourceLocation loc) const {
 		return !stack.empty() && sm.getFileID(loc) == stack.back().fid && !stack.back().opaque;
 	}
-	// #line for the presumed location of f.cursor, so a #line in the source stays in effect.
+	// #line for the presumed location of f.cursor, so a #line in the source stays in effect;
+	// only real paths are normalized and made cwd-relative.
 	void lineMarker(Frame& f) {
 		f.marker = false;
-		PresumedLoc loc = sm.getPresumedLoc(sm.getLocForStartOfFile(f.fid).getLocWithOffset(f.cursor));
+		SourceLocation at = sm.getLocForStartOfFile(f.fid).getLocWithOffset(f.cursor);
+		PresumedLoc loc = sm.getPresumedLoc(at);
 		llvm::SmallString<256> name(llvm::StringRef(loc.getFilename()));
-		llvm::sys::path::remove_dots(name, true);
-		if (llvm::StringRef(name).starts_with(cwd)) name.erase(name.begin(), name.begin() + cwd.size());
+		if (name == sm.getFilename(at)) {
+			llvm::sys::path::remove_dots(name, true);
+			if (llvm::StringRef(name).starts_with(cwd)) name.erase(name.begin(), name.begin() + cwd.size());
+		}
 		out += "#line " + std::to_string(loc.getLine()) + " " + quoted(name) + "\n";
 	}
 
@@ -273,6 +277,10 @@ int main(int argc, const char** argv) {
 		}
 		llvm::SmallString<256> abs(f);
 		llvm::sys::fs::make_absolute(abs);
+		if (abs.str().contains('"')) {
+			llvm::errs() << "cpp-bundle: path contains a double quote: " << abs << "\n";
+			return 1;
+		}
 		mainSrc += "#include \"" + std::string(abs) + "\"\n";
 	}
 	const char* mainName = "/cpp-bundle/main.cpp";
