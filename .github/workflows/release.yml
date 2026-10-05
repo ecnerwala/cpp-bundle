@@ -2,6 +2,8 @@ name: release
 on:
   push:
     tags: ['v*']
+  pull_request:
+    paths: ['.github/workflows/release.yml', 'Dockerfile', 'CMakeLists.txt', 'pyproject.toml', 'hatch_build.py']
   workflow_dispatch:
 permissions:
   contents: write
