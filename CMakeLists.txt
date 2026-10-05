@@ -43,13 +43,6 @@ set(system_libs zlibstatic libzstd_static dl m)
 if(APPLE)
 	set(group_start)
 	set(group_end)
-	# Homebrew's clang archives contain LTO bitcode that Apple's ld (and its libLTO) can't
-	# consume from a newer LLVM, so link with that LLVM's lld when it is available
-	# (Homebrew ships it as the separate `lld` formula next to `llvm`).
-	find_program(LD64_LLD ld64.lld HINTS ${LLVM_TOOLS_BINARY_DIR} ${LLVM_INSTALL_PREFIX}/../lld/bin)
-	if(LD64_LLD)
-		add_link_options(-fuse-ld=${LD64_LLD})
-	endif()
 else()
 	list(APPEND system_libs rt)
 	set(group_start -Wl,--start-group)

@@ -30,7 +30,7 @@ jobs:
         run: docker build --output type=local,dest=dist .
       - if: runner.os == 'macOS'
         run: |
-          brew install llvm lld
+          brew update && brew install llvm
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"
           cmake --build build -j"$(sysctl -n hw.ncpu)"
           CXX="$(brew --prefix llvm)/bin/clang++" ctest --test-dir build --output-on-failure
