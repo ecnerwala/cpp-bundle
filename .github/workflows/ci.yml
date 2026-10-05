@@ -18,7 +18,7 @@ jobs:
       - run: brew install llvm@20
       - run: cmake -S . -B build -DClang_DIR="$(brew --prefix llvm@20)/lib/cmake/clang"
       - run: cmake --build build
-      - run: ctest --test-dir build --output-on-failure
+      - run: CXX="$(brew --prefix llvm@20)/bin/clang++" ctest --test-dir build --output-on-failure
       - run: otool -L build/cpp-bundle build/cpp-minify
   docker:
     runs-on: ubuntu-24.04
