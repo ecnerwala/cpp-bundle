@@ -51,13 +51,14 @@ as a Python wheel, so projects that already use `uv`/`pip` get them on `PATH` wi
 tooling:
 
 ```sh
-uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_35_x86_64.whl"
+uv tool install "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
 # or, inside a uv project (pins it in uv.lock):
-uv add "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_35_x86_64.whl"
+uv add "cpp-bundler @ https://github.com/ecnerwala/cpp-bundler/releases/download/v0.1.0/cpp_bundler-0.1.0-py3-none-manylinux_2_34_x86_64.whl"
 ```
 
 The wheel contains no Python code; `pyproject.toml` / `hatch_build.py` just wrap `dist/`
-(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a Docker build).
+(`CPP_BUNDLER_VERSION=x.y.z uv build --wheel` after a Docker build), and `auditwheel repair`
+tags it with the glibc floor the binaries actually need.
 
 ## Building
 

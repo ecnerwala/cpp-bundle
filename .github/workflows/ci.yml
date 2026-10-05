@@ -19,5 +19,7 @@ jobs:
       - run: ls -l dist && dist/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
       - run: |
           CPP_BUNDLER_VERSION=0.0.0 pipx run build --wheel
-          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install dist/*.whl
+          python3 -m venv /tmp/aw && /tmp/aw/bin/pip install auditwheel patchelf
+          /tmp/aw/bin/auditwheel repair -w wheelhouse dist/*.whl
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install wheelhouse/*.whl
           /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null

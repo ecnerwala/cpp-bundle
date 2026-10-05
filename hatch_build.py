@@ -3,8 +3,8 @@ import sys
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-# glibc floor of the Dockerfile's base image (Ubuntu 22.04).
-DEFAULT_TAG = "py3-none-manylinux_2_35_x86_64"
+# `auditwheel repair` turns this into the manylinux tag of the glibc floor actually required.
+DEFAULT_TAG = "py3-none-linux_x86_64"
 
 
 class CustomBuildHook(BuildHookInterface):
