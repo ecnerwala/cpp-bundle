@@ -43,10 +43,10 @@ set(system_libs zlibstatic libzstd_static dl m)
 if(APPLE)
 	set(group_start)
 	set(group_end)
-	# Apple's ld reads the LTO bitcode in Homebrew's clang archives through libLTO; the
-	# system one is too old for the bitcode a newer LLVM writes, so point it at LLVM's own.
-	if(EXISTS ${LLVM_LIBRARY_DIR}/libLTO.dylib)
-		add_link_options(-Wl,-lto_library,${LLVM_LIBRARY_DIR}/libLTO.dylib)
+	# Homebrew's clang archives contain LTO bitcode that Apple's ld (and its libLTO) can't
+	# consume from a newer LLVM, so link with that LLVM's own lld when it is there.
+	if(EXISTS ${LLVM_TOOLS_BINARY_DIR}/ld64.lld)
+		add_link_options(-fuse-ld=${LLVM_TOOLS_BINARY_DIR}/ld64.lld)
 	endif()
 else()
 	list(APPEND system_libs rt)
