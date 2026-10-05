@@ -68,7 +68,7 @@ tags them with the glibc floor the binaries actually need.
 
 Needs CMake 3.20+ and the Clang/LLVM development packages of one Clang major (23 is what CI
 uses); zlib and zstd are downloaded and built by CMake. On Debian/Ubuntu
-(macOS: `brew install llvm` and `-DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"`):
+(macOS: `brew install llvm lld` and `-DClang_DIR="$(brew --prefix llvm)/lib/cmake/clang"`):
 
 ```sh
 wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 23
