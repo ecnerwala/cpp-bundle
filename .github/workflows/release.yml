@@ -6,7 +6,7 @@ on:
     paths: ['.github/workflows/release.yml', 'Dockerfile', 'CMakeLists.txt', 'pyproject.toml', 'hatch_build.py']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     strategy:
@@ -40,16 +40,15 @@ jobs:
       - run: |
           tar -C dist -czf "$ARCHIVE.tar.gz" cpp-bundle cpp-minify
           shasum -a 256 "$ARCHIVE.tar.gz" > "$ARCHIVE.tar.gz.sha256"
+      - uses: astral-sh/setup-uv@v7
       - run: |
-          pipx run build --wheel
+          uv build --wheel
           if [ "$RUNNER_OS" = Linux ]; then
-            python3 -m venv /tmp/aw && /tmp/aw/bin/pip install auditwheel patchelf
-            /tmp/aw/bin/auditwheel repair -w wheelhouse dist/*.whl
+            uvx --with patchelf auditwheel repair -w wheelhouse dist/*.whl
           else
             mkdir wheelhouse && cp dist/*.whl wheelhouse
           fi
-          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install wheelhouse/*.whl
-          /tmp/venv/bin/cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
+          uvx --from wheelhouse/*.whl cpp-minify --check tests/fixtures/basic/main.cpp >/dev/null
       - uses: actions/upload-artifact@v4
         with:
           name: cpp-bundler-${{ matrix.target }}
@@ -60,6 +59,8 @@ jobs:
     needs: build
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:

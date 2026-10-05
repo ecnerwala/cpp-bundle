@@ -2,11 +2,11 @@
 FROM ubuntu:22.04 AS build
 ARG LLVM_VERSION=20
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget cmake make g++ \
+RUN apt() { apt-get -o Acquire::Retries=5 "$@"; }; apt update && apt install -y --no-install-recommends ca-certificates wget cmake make g++ \
     && wget -q --tries=10 --waitretry=5 -O /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
     && echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-${LLVM_VERSION} main" > /etc/apt/sources.list.d/llvm.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends clang-${LLVM_VERSION} libclang-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev \
+    && apt update \
+    && apt install -y --no-install-recommends clang-${LLVM_VERSION} libclang-${LLVM_VERSION}-dev llvm-${LLVM_VERSION}-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
