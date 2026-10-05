@@ -1,4 +1,7 @@
+#line 1 "main.cpp"
 #pragma GCC optimize("O3")
+#line 1 "inc/opt.hpp"
+
 #pragma GCC optimize("unroll-loops")
 #pragma GCC optimize("Ofast")
 #if defined(__x86_64__) || defined(__i386__)
@@ -13,6 +16,7 @@ _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
 inline void warn() { int unused = 0; }
 _Pragma("GCC diagnostic pop")
+#line 1 "inc/guarded.hpp"
 #ifndef GUARDED_HPP
 #define GUARDED_HPP
 #pragma GCC diagnostic push
@@ -22,9 +26,11 @@ _Pragma("GCC diagnostic pop")
 #pragma GCC target("avx2")
 #endif
 #pragma GCC diagnostic pop
+
 inline int guarded() { return 1; }
 #endif
 #include <cstdio>
+#line 7 "main.cpp"
 #pragma GCC diagnostic ignored "-Wpragmas"
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma STDC FP_CONTRACT ON

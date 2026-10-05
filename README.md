@@ -13,7 +13,9 @@ cpp-bundle [CLANG_ARGS...] FILE...
 
 - `#include "..."` is a user header and gets inlined where it is included (an error if the
   file does not exist); an include that clang skips (guard, `#pragma once`) produces nothing.
-  `#pragma once` lines are dropped; include guards are kept as text.
+  Each inlined region is preceded by a `#line N "path"` marker (paths relative to the current
+  directory), so compiler diagnostics point at the original files. `#pragma once` lines are
+  blanked; include guards are kept as text.
 - `#include <...>` is kept as a line, once per header name, at the position of its first
   inclusion. The standard include directories are never searched (the tool runs with
   `-nostdinc -nostdinc++`), so the output does not depend on the machine's standard library.
@@ -40,9 +42,11 @@ cpp-minify [--check] [FILE]
 
 Strips comments and all whitespace that is not needed to separate tokens from `FILE`
 (default: stdin), keeping one token line per source line and directives on their own
-lines. Identifiers are not renamed, so the result works for anything clang can lex,
-bundled or not. `--check` re-lexes the output and fails unless it yields exactly the
-input's tokens.
+lines. `#line` markers (as emitted by `cpp-bundle`) are replaced by one `// path` comment
+per run of lines from the same file, so the output is safe to paste anywhere and still
+says where each part came from. Identifiers are not renamed, so the result works for
+anything clang can lex, bundled or not. `--check` re-lexes the output and fails unless it
+yields exactly the input's tokens (`#line` directives excepted).
 
 ## Installing
 

@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 #include <cassert>
+// inc/optimize.hpp
 #pragma GCC optimize("unroll-loops")
 #if defined(__x86_64__) || defined(__i386__)
 #pragma GCC target("avx2")
@@ -15,12 +16,15 @@ __builtin_ia32_ldmxcsr(csr);
 #endif
 }
 }
+// inc/g.hpp
 #ifndef G_HPP
 #define G_HPP
 struct G{std::vector<int>v;};
 #endif
+// inc/h.hpp
 #ifdef USE_MAP
 #include <map>
 #endif
 inline int h(G&g){std::sort(g.v.begin(),g.v.end());return 0;}
+// main.cpp
 int main(){G g;return h(g);}

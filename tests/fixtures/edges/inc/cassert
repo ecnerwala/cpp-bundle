@@ -1,0 +1,2 @@
+#pragma once
+#define FAKE_CASSERT 1

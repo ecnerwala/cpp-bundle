@@ -1,3 +1,5 @@
+#line 1 "inc/optimize.hpp"
+
 
 #pragma GCC optimize("unroll-loops")
 #if defined(__x86_64__) || defined(__i386__)
@@ -21,6 +23,7 @@ inline void disable_denormal_floats() {
 
 } // namespace wala
 #include <bits/stdc++.h>
+#line 1 "inc/g.hpp"
 #ifndef G_HPP
 #define G_HPP
 // #include "nothing.hpp"
@@ -28,8 +31,11 @@ inline void disable_denormal_floats() {
 */
 struct G { std::vector<int> v; };
 #endif // G_HPP
+#line 1 "inc/h.hpp"
+
 #ifdef USE_MAP
 #include <map>
 #endif
 inline int h(G& g) { std::sort(g.v.begin(), g.v.end()); return 0; }
+#line 7 "main.cpp"
 int main() { G g; return h(g); }

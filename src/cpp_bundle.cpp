@@ -10,6 +10,7 @@
 #include <llvm/Option/ArgList.h>
 #include <llvm/Option/OptTable.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <cstdlib>
@@ -21,12 +22,6 @@ using namespace clang;
 
 namespace {
 
-std::string realPath(llvm::StringRef p) {
-	llvm::SmallString<256> out;
-	if (llvm::sys::fs::real_path(p, out)) return std::string(p);
-	return std::string(out);
-}
-
 llvm::StringRef trim(llvm::StringRef s) { return s.trim(" \t\r\n"); }
 
 bool isPragmaOnce(llvm::StringRef line) {
@@ -37,7 +32,7 @@ bool isPragmaOnce(llvm::StringRef line) {
 	line = line.ltrim(" \t");
 	if (!line.consume_front("once")) return false;
 	line = line.ltrim(" \t");
-	return line.empty() || line.starts_with("//") || line.starts_with("/*");
+	return line.empty() || line.starts_with("//") || (line.starts_with("/*") && line.contains("*/"));
 }
 
 struct Frame {
@@ -46,40 +41,63 @@ struct Frame {
 	unsigned cursor;
 	bool copy;
 	bool opaque;
+	bool marker;
 };
 
 // Copies the text of every file reached through #include "..." as the preprocessor enters
-// it, replacing the directive by the file and dropping #pragma once. #include <...> is kept
-// as a line, once per header name, unless a prelude header covers it; the standard include
-// directories are never searched (-nostdinc -nostdinc++). -include files come first: inlined
-// if they exist, emitted as #include <...> otherwise.
+// it, replacing the directive by the file between #line markers and blanking #pragma once.
+// #include <...> is kept as a line, once per header name, unless a prelude header covers it;
+// the standard include directories are never searched (-nostdinc -nostdinc++). -include files
+// come first: inlined if they exist, emitted as #include <...> otherwise.
 class Bundler : public PPCallbacks {
 	Preprocessor& pp;
 	SourceManager& sm;
 	std::vector<Frame> stack;
 	std::string& out;
+	std::string cwd;
 	std::set<std::string> seen;
 	bool nextOpaque = false;
 
 	void flush(Frame& f, unsigned to) {
-		if (f.copy && to > f.cursor) out.append(f.buf.data() + f.cursor, to - f.cursor);
+		if (f.copy && to > f.cursor) {
+			if (f.marker) lineMarker(f);
+			out.append(f.buf.data() + f.cursor, to - f.cursor);
+		}
 		if (to > f.cursor) f.cursor = to;
 	}
+	void finish(Frame& f) {
+		flush(f, f.buf.size());
+		if (f.copy && !out.empty() && out.back() != '\n') out += '\n';
+	}
+	// The physical lines of the directive at loc, including backslash-continued ones.
 	std::pair<unsigned, unsigned> lineRange(SourceLocation loc) {
 		Frame& f = stack.back();
 		unsigned off = sm.getFileOffset(loc);
 		unsigned b = off, e = off;
 		while (b > 0 && f.buf[b - 1] != '\n') --b;
-		while (e < f.buf.size() && f.buf[e] != '\n') ++e;
-		if (e < f.buf.size()) ++e;
+		while (e < f.buf.size()) {
+			if (f.buf[e++] != '\n') continue;
+			llvm::StringRef line = f.buf.substr(b, e - b).rtrim("\r\n");
+			if (!line.ends_with("\\")) break;
+		}
 		return {b, e};
 	}
 	bool onTop(SourceLocation loc) const {
 		return !stack.empty() && sm.getFileID(loc) == stack.back().fid && !stack.back().opaque;
 	}
+	void lineMarker(Frame& f) {
+		f.marker = false;
+		llvm::SmallString<256> name = sm.getFileEntryRefForID(f.fid)->getName();
+		llvm::sys::path::remove_dots(name, true);
+		if (llvm::StringRef(name).starts_with(cwd)) name.erase(name.begin(), name.begin() + cwd.size());
+		out += "#line " + std::to_string(sm.getLineNumber(f.fid, f.cursor)) + " \"" + std::string(name) + "\"\n";
+	}
 
 public:
-	Bundler(Preprocessor& pp, std::string& out) : pp(pp), sm(pp.getSourceManager()), out(out) {}
+	Bundler(Preprocessor& pp, std::string& out) : pp(pp), sm(pp.getSourceManager()), out(out) {
+		llvm::SmallString<256> dir;
+		if (!llvm::sys::fs::current_path(dir)) cwd = std::string(dir) + "/";
+	}
 
 	void InclusionDirective(
 		SourceLocation HashLoc, const Token&, llvm::StringRef FileName, bool IsAngled, CharSourceRange,
@@ -106,6 +124,8 @@ public:
 
 	bool FileNotFound(llvm::StringRef) override { return true; }
 
+	void FileSkipped(const FileEntryRef&, const Token&, SrcMgr::CharacteristicKind) override { nextOpaque = false; }
+
 	void FileChanged(SourceLocation Loc, FileChangeReason Reason, SrcMgr::CharacteristicKind, FileID PrevFID) override {
 		if (Reason == EnterFile) {
 			FileID fid = sm.getFileID(Loc);
@@ -113,15 +133,16 @@ public:
 			bool special = fid == sm.getMainFileID() || fid == pp.getPredefinesFileID();
 			bool opaque = !special && (nextOpaque || (!stack.empty() && stack.back().opaque));
 			nextOpaque = false;
-			stack.push_back({fid, sm.getBufferData(fid), 0, !special && !opaque, opaque});
+			stack.push_back({fid, sm.getBufferData(fid), 0, !special && !opaque, opaque, true});
 		} else if (Reason == ExitFile) {
 			if (PrevFID.isInvalid()) return;
 			if (stack.empty() || stack.back().fid != PrevFID) {
 				llvm::errs() << "cpp-bundle: unbalanced file exit\n";
 				std::exit(1);
 			}
-			flush(stack.back(), stack.back().buf.size());
+			finish(stack.back());
 			stack.pop_back();
+			if (!stack.empty()) stack.back().marker = true;
 		}
 	}
 
@@ -131,13 +152,13 @@ public:
 		Frame& f = stack.back();
 		if (isPragmaOnce(f.buf.substr(b, e - b))) {
 			flush(f, b);
-			f.cursor = e;
+			f.cursor = e - (e > b && f.buf[e - 1] == '\n');
 		}
 	}
 
 	void EndOfMainFile() override {
 		while (!stack.empty()) {
-			flush(stack.back(), stack.back().buf.size());
+			finish(stack.back());
 			stack.pop_back();
 		}
 	}
@@ -195,11 +216,11 @@ struct Factory : tooling::FrontendActionFactory {
 const char* usage =
 	"usage: cpp-bundle [CLANG_ARGS...] FILE...\n"
 	"\n"
-	"Writes FILEs to stdout with every #include \"...\" replaced by that file's text, as the\n"
-	"preprocessor sees it. #include <...> is kept as a line, once per header name; the standard\n"
-	"include directories are never searched. CLANG_ARGS are clang's (-std=, -I, -D, ...);\n"
-	"-include HDR puts HDR first: inlined if it is a file, #include <HDR> otherwise, and after\n"
-	"bits/stdc++.h later includes of standard headers are dropped.\n";
+	"Writes FILEs to stdout with every #include \"...\" replaced by that file's text between\n"
+	"#line markers, as the preprocessor sees it. #include <...> is kept as a line, once per\n"
+	"header name; the standard include directories are never searched. CLANG_ARGS are clang's\n"
+	"(-std=, -I, -D, ...); -include HDR puts HDR first: inlined if it is a file, #include <HDR>\n"
+	"otherwise, and after bits/stdc++.h later includes of standard headers are dropped.\n";
 
 } // namespace
 
@@ -233,9 +254,9 @@ int main(int argc, const char** argv) {
 			llvm::errs() << "cpp-bundle: file not found: " << f << "\n";
 			return 1;
 		}
-		mainSrc += "#include \"" + realPath(f) + "\"\n";
+		mainSrc += "#include \"" + f + "\"\n";
 	}
-	const char* mainName = "/cpp-bundle-main.cpp";
+	const char* mainName = "cpp-bundle-main.cpp";
 	args.insert(args.end(), {"-nostdinc", "-nostdinc++", "-x", "c++"});
 	tooling::FixedCompilationDatabase db(".", args);
 	tooling::ClangTool tool(db, {mainName});
