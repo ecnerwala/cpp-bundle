@@ -41,6 +41,7 @@ FetchContent_Declare(zstd
 FetchContent_MakeAvailable(zlib zstd)
 set(system_libs zlibstatic libzstd_static dl m)
 if(APPLE)
+	list(APPEND system_libs xcselect)
 	set(group_start)
 	set(group_end)
 else()
