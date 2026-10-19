@@ -66,3 +66,8 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+dist/
+
+# Python (wheel build)
+__pycache__/
+*.whl
