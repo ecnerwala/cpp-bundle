@@ -127,14 +127,13 @@ std::vector<Line> toLines(const std::vector<Tok>& toks, Level level) {
 		}
 		if (t.sol || out.empty()) {
 			out.push_back({"", t.kind == tok::hash, t.text, t.text});
-			if (level == Level::light)
-				if (size_t nl = t.ws.rfind('\n'); nl != std::string::npos) out.back().text = t.ws.substr(nl + 1);
+			if (level == Level::light) out.back().text = t.ws.substr(t.ws.rfind('\n') + 1);
 		} else {
 			Line& l = out.back();
 			const Tok& p = toks[i - 1];
 			if (level == Level::light) {
-				if (!t.comment || t.ws.find('\n') != std::string::npos) l.text += t.ws;
-				else if (!t.ws.empty() || needSpace(p.text, t.text)) l.text += ' ';
+				if (!t.ws.empty()) l.text += t.ws;
+				else if (t.comment && needSpace(p.text, t.text)) l.text += ' ';
 			} else if (l.alone ? t.text.data() > p.text.end() : needSpace(p.text, t.text)) l.text += ' ';
 		}
 		out.back().text += t.text;
